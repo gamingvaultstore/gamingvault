@@ -93,7 +93,7 @@ const PublicLayout = () => {
           <h4>Support</h4>
           <Link to="/faq">FAQ</Link>
           <Link to="/refer-earn">Refer & Earn</Link>
-          <a href="https://wa.me/6367875141">WhatsApp: +91 6367875141</a>
+          <a href="https://wa.me/919785116626">WhatsApp: +91 9785116626</a>
         </div>
         <div>
           <h4>Policies</h4>
