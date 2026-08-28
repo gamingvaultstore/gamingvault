@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="BGMI account placeholder">
+  <rect width="900" height="600" fill="#101318"/>
+  <rect x="70" y="70" width="760" height="460" rx="28" fill="#18242d" stroke="#20c6ff" stroke-width="4"/>
+  <polygon points="210,380 310,170 420,380" fill="#263d48"/>
+  <rect x="480" y="180" width="230" height="28" rx="14" fill="#20c6ff"/>
+  <rect x="480" y="245" width="180" height="22" rx="11" fill="#738091"/>
+  <rect x="480" y="295" width="260" height="22" rx="11" fill="#738091"/>
+  <text x="450" y="455" text-anchor="middle" fill="#f6f8fb" font-family="Arial, sans-serif" font-size="50" font-weight="700">BGMI</text>
+</svg>

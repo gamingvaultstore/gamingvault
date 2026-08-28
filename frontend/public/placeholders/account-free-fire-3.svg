@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="Free Fire account placeholder">
+  <rect width="900" height="600" fill="#12110e"/>
+  <rect x="90" y="90" width="720" height="420" rx="28" fill="#241f17" stroke="#1cf6b1" stroke-width="4"/>
+  <rect x="190" y="180" width="210" height="210" rx="24" fill="#35412c"/>
+  <rect x="465" y="190" width="230" height="28" rx="14" fill="#1cf6b1"/>
+  <rect x="465" y="255" width="280" height="22" rx="11" fill="#7b806d"/>
+  <rect x="465" y="305" width="200" height="22" rx="11" fill="#7b806d"/>
+  <text x="450" y="450" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="48" font-weight="700">FREE FIRE</text>
+</svg>

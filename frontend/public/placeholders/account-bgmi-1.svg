@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="BGMI account placeholder">
+  <rect width="900" height="600" fill="#0b1012"/>
+  <path d="M0 430 C190 330 310 450 470 350 C620 260 760 280 900 170 V600 H0 Z" fill="#12261f"/>
+  <rect x="110" y="100" width="680" height="390" rx="26" fill="#17212a" stroke="#1cf6b1" stroke-width="4"/>
+  <rect x="180" y="170" width="180" height="180" rx="18" fill="#22313a"/>
+  <rect x="410" y="175" width="290" height="26" rx="13" fill="#1cf6b1"/>
+  <rect x="410" y="235" width="230" height="22" rx="11" fill="#74808f"/>
+  <rect x="410" y="285" width="270" height="22" rx="11" fill="#74808f"/>
+  <text x="450" y="425" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="54" font-weight="700">BGMI</text>
+</svg>

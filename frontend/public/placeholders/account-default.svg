@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="Account placeholder">
+  <rect width="900" height="600" fill="#12161f"/>
+  <rect x="70" y="70" width="760" height="460" rx="32" fill="#1a202b" stroke="#2ce9b8" stroke-width="3"/>
+  <circle cx="260" cy="280" r="80" fill="#263241"/>
+  <rect x="390" y="210" width="260" height="30" rx="15" fill="#2ce9b8"/>
+  <rect x="390" y="270" width="330" height="24" rx="12" fill="#526071"/>
+  <rect x="390" y="320" width="250" height="24" rx="12" fill="#526071"/>
+  <text x="450" y="455" text-anchor="middle" fill="#f6f8fb" font-family="Arial, sans-serif" font-size="44" font-weight="700">ACCOUNT</text>
+</svg>
