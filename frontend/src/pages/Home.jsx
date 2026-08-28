@@ -22,6 +22,10 @@ const Home = () => {
         setFeatured(accountsRes.data.slice(0, 4));
         setProofs(proofsRes.data.slice(0, 3));
         setFaqs(faqsRes.data.slice(0, 3));
+      } catch (error) {
+        setFeatured([]);
+        setProofs([]);
+        setFaqs([]);
       } finally {
         setLoading(false);
       }
