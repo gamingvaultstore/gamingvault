@@ -7,6 +7,7 @@ import PublicLayout from "./layouts/PublicLayout";
 import AccountDetails from "./pages/AccountDetails";
 import Dashboard from "./pages/Dashboard";
 import FAQ from "./pages/FAQ";
+import ForgotCredentials from "./pages/ForgotCredentials";
 import HappyCustomers from "./pages/HappyCustomers";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -16,6 +17,7 @@ import Payment from "./pages/Payment";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import ReferEarn from "./pages/ReferEarn";
 import Register from "./pages/Register";
+import { Privacy, Refund, Terms } from "./pages/Policy";
 import AdminAccounts from "./pages/admin/AdminAccounts";
 import AdminCustomerProofs from "./pages/admin/AdminCustomerProofs";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -32,7 +34,11 @@ const App = () => (
       <Route path="marketplace/:game" element={<Marketplace />} />
       <Route path="account/:id" element={<AccountDetails />} />
       <Route path="login" element={<Login />} />
+      <Route path="forgot-credentials" element={<ForgotCredentials />} />
       <Route path="register" element={<Register />} />
+      <Route path="terms" element={<Terms />} />
+      <Route path="privacy" element={<Privacy />} />
+      <Route path="refund-policy" element={<Refund />} />
       <Route path="refer-earn" element={<ReferEarn />} />
       <Route path="happy-customers" element={<HappyCustomers />} />
       <Route path="faq" element={<FAQ />} />

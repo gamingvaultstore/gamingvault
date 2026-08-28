@@ -9,7 +9,7 @@ const Order = require("./models/Order");
 const Setting = require("./models/Setting");
 const User = require("./models/User");
 
-const adminEmail = "admin@gamingmarket.test";
+const adminEmail = "admin@gamingvault.test";
 const adminPassword = "Admin@12345";
 
 const accounts = [

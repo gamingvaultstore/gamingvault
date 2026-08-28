@@ -5,47 +5,51 @@ const accountSchema = new mongoose.Schema(
     game: {
       type: String,
       enum: ["BGMI", "FREE_FIRE"],
-      required: true
+      required: true,
     },
     title: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     description: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     price: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
     },
     level: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     specifications: {
       type: mongoose.Schema.Types.Mixed,
-      default: {}
+      default: {},
     },
     images: {
       type: [String],
-      default: []
+      default: [],
+    },
+    videoUrl: {
+      type: String,
+      default: null,
     },
     status: {
       type: String,
       enum: ["AVAILABLE", "SOLD", "HIDDEN"],
-      default: "AVAILABLE"
+      default: "AVAILABLE",
     },
     featured: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Account", accountSchema);

@@ -1,11 +1,17 @@
 import React from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { useState } from "react";
+import RecentActivityPopup from "../components/RecentActivityPopup";
 import { useAuth } from "../hooks/useAuth";
 
 const PublicLayout = () => {
   const [open, setOpen] = useState(false);
   const { isLoggedIn, logout } = useAuth();
+  const { pathname } = useLocation();
+  const showActivity =
+    pathname === "/" ||
+    pathname.startsWith("/marketplace") ||
+    pathname.startsWith("/account/");
 
   const close = () => setOpen(false);
 
@@ -68,6 +74,7 @@ const PublicLayout = () => {
       <main>
         <Outlet />
       </main>
+      {showActivity && <RecentActivityPopup />}
       <footer className="footer">
         <div>
           <h3>GameVault</h3>
@@ -86,13 +93,13 @@ const PublicLayout = () => {
           <h4>Support</h4>
           <Link to="/faq">FAQ</Link>
           <Link to="/refer-earn">Refer & Earn</Link>
-          <a href="https://wa.me/919999999999">WhatsApp: +91 99999 99999</a>
+          <a href="https://wa.me/6367875141">WhatsApp: +91 6367875141</a>
         </div>
         <div>
           <h4>Policies</h4>
-          <a href="#">Terms</a>
-          <a href="#">Privacy</a>
-          <a href="#">Refund policy</a>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/refund-policy">Refund policy</Link>
         </div>
       </footer>
     </>

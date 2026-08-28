@@ -14,9 +14,11 @@ const emptyForm = {
   status: "AVAILABLE",
   featured: false,
   existingImages: [],
+  videoUrl: "",
+  removeVideo: false,
 };
 
-const formDataFromAccount = (form, files) => {
+const formDataFromAccount = (form, files, videoFile) => {
   const data = new FormData();
   data.append("game", form.game);
   data.append("title", form.title);
@@ -27,8 +29,10 @@ const formDataFromAccount = (form, files) => {
   data.append("status", form.status);
   data.append("featured", String(form.featured));
   data.append("existingImages", JSON.stringify(form.existingImages || []));
+  data.append("removeVideo", String(form.removeVideo));
 
   Array.from(files || []).forEach((file) => data.append("images", file));
+  if (videoFile?.[0]) data.append("video", videoFile[0]);
   return data;
 };
 
@@ -36,6 +40,7 @@ const AdminAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [files, setFiles] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -56,6 +61,7 @@ const AdminAccounts = () => {
   const resetForm = () => {
     setForm(emptyForm);
     setFiles(null);
+    setVideoFile(null);
     setEditingId("");
   };
 
@@ -65,7 +71,7 @@ const AdminAccounts = () => {
     setError("");
 
     try {
-      const payload = formDataFromAccount(form, files);
+      const payload = formDataFromAccount(form, files, videoFile);
       if (editingId) {
         await api.put(`/admin/accounts/${editingId}`, payload);
         setMessage("Account updated");
@@ -92,6 +98,8 @@ const AdminAccounts = () => {
       status: account.status,
       featured: account.featured,
       existingImages: account.images || [],
+      videoUrl: account.videoUrl || "",
+      removeVideo: false,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -114,6 +122,7 @@ const AdminAccounts = () => {
               ? updates.featured
               : account.featured,
           existingImages: account.images || [],
+          removeVideo: false,
         },
         [],
       );
@@ -232,6 +241,29 @@ const AdminAccounts = () => {
             onChange={(event) => setFiles(event.target.files)}
           />
         </label>
+        <label>
+          Account Video
+          <input
+            type="file"
+            accept="video/mp4,video/webm"
+            onChange={(event) => setVideoFile(event.target.files)}
+          />
+        </label>
+        {form.videoUrl && (
+          <div className="video-admin-options">
+            <video src={form.videoUrl} controls />
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={form.removeVideo}
+                onChange={(event) =>
+                  update("removeVideo", event.target.checked)
+                }
+              />
+              Remove existing video
+            </label>
+          </div>
+        )}
         {form.existingImages.length > 0 && (
           <div className="image-strip">
             {form.existingImages.map((src) => (

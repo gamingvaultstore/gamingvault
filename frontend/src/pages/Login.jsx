@@ -60,6 +60,9 @@ const Login = () => {
         <button className="button wide" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
+        <Link className="subtle-link" to="/forgot-credentials">
+          Forgot login ID or password?
+        </Link>
         <p>
           New here? <Link to="/register">Create an account</Link>
         </p>

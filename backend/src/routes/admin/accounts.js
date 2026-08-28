@@ -3,15 +3,29 @@ const {
   createAccount,
   deleteAccount,
   getAdminAccounts,
-  updateAccount
+  updateAccount,
 } = require("../../controllers/adminAccountController");
 const upload = require("../../middleware/upload");
 
 const router = express.Router();
 
 router.get("/", getAdminAccounts);
-router.post("/", upload.array("images", 5), createAccount);
-router.put("/:id", upload.array("images", 5), updateAccount);
+router.post(
+  "/",
+  upload.accountUpload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "video", maxCount: 1 },
+  ]),
+  createAccount,
+);
+router.put(
+  "/:id",
+  upload.accountUpload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "video", maxCount: 1 },
+  ]),
+  updateAccount,
+);
 router.delete("/:id", deleteAccount);
 
 module.exports = router;

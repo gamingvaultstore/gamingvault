@@ -64,7 +64,8 @@ app.use((err, req, res, next) => {
   console.error(err);
   const isUploadError =
     err.name === "MulterError" ||
-    err.message === "Only JPG, PNG, and WebP images are allowed";
+    err.message === "Only JPG, PNG, and WebP images are allowed" ||
+    err.message?.startsWith("Images must be JPG");
   const status = err.statusCode || (isUploadError ? 400 : 500);
   const message =
     status === 500 ? "Something went wrong. Please try again." : err.message;

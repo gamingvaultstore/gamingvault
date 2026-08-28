@@ -4,7 +4,8 @@ const parseJsonField = require("../utils/parseJson");
 const { uploadToImageKit } = require("../services/imagekitService");
 const { gameFromParam, sortFromQuery } = require("./accountController");
 
-const toBoolean = (value) => value === true || value === "true" || value === "on";
+const toBoolean = (value) =>
+  value === true || value === "true" || value === "on";
 
 const accountPayloadFromBody = (body) => ({
   game: gameFromParam(body.game),
@@ -14,8 +15,15 @@ const accountPayloadFromBody = (body) => ({
   level: body.level,
   specifications: parseJsonField(body.specifications, {}),
   status: body.status || "AVAILABLE",
-  featured: toBoolean(body.featured)
+  featured: toBoolean(body.featured),
 });
+
+const uploadedVideo = async (files = {}) => {
+  const video = files.video?.[0];
+  if (!video) return null;
+  const upload = await uploadToImageKit(video, "/account-videos");
+  return upload.url;
+};
 
 const validateAccountPayload = (payload) => {
   if (!["BGMI", "FREE_FIRE"].includes(payload.game)) return "Game is required";
@@ -31,7 +39,7 @@ const validateAccountPayload = (payload) => {
 
 const uploadedImageUrls = async (files = []) => {
   const uploads = await Promise.all(
-    files.map((file) => uploadToImageKit(file, "/account-images"))
+    files.map((file) => uploadToImageKit(file, "/account-images")),
   );
   return uploads.map((upload) => upload.url);
 };
@@ -42,7 +50,9 @@ const getAdminAccounts = asyncHandler(async (req, res) => {
   if (req.query.game) filter.game = gameFromParam(req.query.game);
   if (req.query.status) filter.status = req.query.status;
 
-  const accounts = await Account.find(filter).sort(sortFromQuery(req.query.sort));
+  const accounts = await Account.find(filter).sort(
+    sortFromQuery(req.query.sort),
+  );
   res.json(accounts);
 });
 
@@ -54,10 +64,12 @@ const createAccount = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: validationError });
   }
 
-  const images = await uploadedImageUrls(req.files);
+  const images = await uploadedImageUrls(req.files?.images);
+  const videoUrl = await uploadedVideo(req.files);
   const account = await Account.create({
     ...payload,
-    images: images.length ? images : ["/placeholders/account-default.svg"]
+    images: images.length ? images : ["/placeholders/account-default.svg"],
+    ...(videoUrl ? { videoUrl } : {}),
   });
 
   res.status(201).json(account);
@@ -78,7 +90,7 @@ const updateAccount = asyncHandler(async (req, res) => {
     level: req.body.level ?? account.level,
     specifications: req.body.specifications ?? account.specifications,
     status: req.body.status ?? account.status,
-    featured: req.body.featured ?? account.featured
+    featured: req.body.featured ?? account.featured,
   });
 
   const validationError = validateAccountPayload(payload);
@@ -86,11 +98,18 @@ const updateAccount = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: validationError });
   }
 
-  const existingImages = parseJsonField(req.body.existingImages, account.images);
-  const newImages = await uploadedImageUrls(req.files);
+  const existingImages = parseJsonField(
+    req.body.existingImages,
+    account.images,
+  );
+  const newImages = await uploadedImageUrls(req.files?.images);
+  const newVideoUrl = await uploadedVideo(req.files);
+  const videoUrl =
+    newVideoUrl || (toBoolean(req.body.removeVideo) ? null : account.videoUrl);
 
   Object.assign(account, payload, {
-    images: [...existingImages, ...newImages]
+    images: [...existingImages, ...newImages],
+    videoUrl,
   });
 
   await account.save();
@@ -111,5 +130,5 @@ module.exports = {
   getAdminAccounts,
   createAccount,
   updateAccount,
-  deleteAccount
+  deleteAccount,
 };

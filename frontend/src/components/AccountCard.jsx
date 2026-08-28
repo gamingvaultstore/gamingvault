@@ -14,7 +14,18 @@ const specPreview = (specifications = {}) =>
 const AccountCard = ({ account }) => (
   <article className="account-card">
     <div className="account-card-media">
-      <img src={imageUrl(account.images?.[0])} alt={account.title} />
+      {account.videoUrl ? (
+        <video
+          controls
+          playsInline
+          preload="metadata"
+          poster={imageUrl(account.images?.[0])}
+          src={account.videoUrl}
+          aria-label={`${account.title} showcase video`}
+        />
+      ) : (
+        <img src={imageUrl(account.images?.[0])} alt={account.title} />
+      )}
       <span className={`pill ${account.game === "BGMI" ? "teal" : "gold"}`}>
         {gameLabel(account.game)}
       </span>

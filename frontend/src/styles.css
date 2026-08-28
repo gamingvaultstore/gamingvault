@@ -320,6 +320,29 @@ p {
   margin-bottom: 26px;
 }
 
+.policy-page {
+  max-width: 860px;
+}
+
+.policy-list {
+  display: grid;
+  gap: 24px;
+}
+
+.policy-section {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.policy-section h2 {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.policy-section p {
+  margin-bottom: 0;
+}
+
 .section-heading.inline {
   display: flex;
   align-items: end;
@@ -403,11 +426,17 @@ details {
 }
 
 .account-card-media img,
+.account-card-media video,
 .details-media > img,
 .payment-summary img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.account-card-media video {
+  display: block;
+  background: #050608;
 }
 
 .pill {
@@ -596,6 +625,31 @@ textarea {
   background: var(--surface);
 }
 
+.account-showcase {
+  margin-top: 24px;
+}
+
+.account-showcase video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #050608;
+}
+
+.account-showcase p {
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+.account-showcase .video-error {
+  padding: 18px;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.08);
+}
+
 .thumb-row {
   display: flex;
   gap: 10px;
@@ -652,6 +706,14 @@ textarea {
   min-height: 74vh;
   place-items: center;
   padding: 48px 20px;
+}
+
+.recovery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: min(920px, 100%);
+  margin-bottom: 18px;
 }
 
 .form-card,
@@ -902,6 +964,115 @@ td span,
   max-width: 350px;
 }
 
+.video-admin-options {
+  display: grid;
+  gap: 12px;
+}
+
+.video-admin-options video {
+  width: min(360px, 100%);
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #050608;
+}
+
+.activity-popup {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 20px;
+  align-items: start;
+  gap: 10px;
+  width: min(360px, calc(100% - 28px));
+  padding: 16px;
+  border: 1px solid rgba(28, 246, 177, 0.3);
+  border-radius: 8px;
+  background: rgba(17, 20, 26, 0.96);
+  box-shadow: var(--shadow);
+  animation: activity-in 0.28s ease both;
+}
+
+.activity-popup.leaving {
+  animation: activity-out 0.28s ease both;
+}
+
+.activity-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.activity-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.activity-copy strong {
+  font-size: 14px;
+}
+
+.activity-copy span,
+.activity-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-copy span {
+  font-size: 13px;
+}
+
+.activity-copy small {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.activity-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.activity-close:hover {
+  color: var(--text);
+}
+
+@keyframes activity-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes activity-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
 @media (max-width: 1080px) {
   .account-grid,
   .reason-grid,
@@ -979,7 +1150,8 @@ td span,
   .details-layout,
   .footer,
   .filters,
-  .form-grid {
+  .form-grid,
+  .recovery-grid {
     grid-template-columns: 1fr;
   }
 

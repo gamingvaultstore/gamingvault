@@ -14,6 +14,10 @@ const AccountDetails = () => {
   const [selectedImage, setSelectedImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const videoType = account?.videoUrl?.toLowerCase().includes(".webm")
+    ? "video/webm"
+    : "video/mp4";
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -82,6 +86,32 @@ const AccountDetails = () => {
               </button>
             ))}
           </div>
+        )}
+        {account.videoUrl && (
+          <section className="account-showcase">
+            <span className="eyebrow">Account Showcase</span>
+            {videoError ? (
+              <p className="video-error">
+                This video could not be played. Please try refreshing the page.
+              </p>
+            ) : (
+              <video
+                controls
+                playsInline
+                preload="metadata"
+                onError={() => setVideoError(true)}
+              >
+                <source src={account.videoUrl} type={videoType} />
+                Your browser does not support video playback.
+              </video>
+            )}
+            {!videoError && (
+              <p>
+                A short video showing the account's inventory and important
+                items.
+              </p>
+            )}
+          </section>
         )}
       </div>
       <div className="details-panel">
