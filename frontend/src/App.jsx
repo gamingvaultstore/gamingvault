@@ -25,8 +25,10 @@ import AdminFaqs from "./pages/admin/AdminFaqs";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSettings from "./pages/admin/AdminSettings";
+import { ToastProvider } from "./context/ToastContext";
+import { ConfirmProvider } from "./context/ConfirmContext";
 
-const App = () => (
+const AppRoutes = () => (
   <Routes>
     <Route element={<PublicLayout />}>
       <Route index element={<Home />} />
@@ -86,6 +88,14 @@ const App = () => (
       <Route path="faqs" element={<AdminFaqs />} />
     </Route>
   </Routes>
+);
+
+const App = () => (
+  <ToastProvider>
+    <ConfirmProvider>
+      <AppRoutes />
+    </ConfirmProvider>
+  </ToastProvider>
 );
 
 export default App;

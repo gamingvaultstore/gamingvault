@@ -2,12 +2,15 @@ import React from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormMessage from "../../components/FormMessage";
+import LoadingButton from "../../components/LoadingButton";
 import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../context/ToastContext";
 import { errorMessage } from "../../services/api";
 
 const AdminLogin = () => {
   const { login, logout } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,12 +24,17 @@ const AdminLogin = () => {
       const user = await login(form);
       if (user.role !== "ADMIN") {
         logout();
-        setError("Admin access required");
+        const msg = "Admin access required";
+        setError(msg);
+        addToast(msg, "error");
         return;
       }
+      addToast("Admin login successful", "success");
       navigate("/admin");
     } catch (err) {
-      setError(errorMessage(err, "Admin login failed"));
+      const msg = errorMessage(err, "Admin login failed");
+      setError(msg);
+      addToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -46,6 +54,8 @@ const AdminLogin = () => {
             onChange={(event) =>
               setForm({ ...form, email: event.target.value })
             }
+            placeholder="admin@example.com"
+            disabled={loading}
             required
           />
         </label>
@@ -57,12 +67,19 @@ const AdminLogin = () => {
             onChange={(event) =>
               setForm({ ...form, password: event.target.value })
             }
+            placeholder="********"
+            disabled={loading}
             required
           />
         </label>
-        <button className="button wide" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
+        <LoadingButton
+          className="button wide"
+          loading={loading}
+          loadingLabel="LOGGING IN..."
+          type="submit"
+        >
+          LOGIN
+        </LoadingButton>
         <Link to="/" className="subtle-link">
           Back to site
         </Link>

@@ -41,8 +41,12 @@ const accountSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["AVAILABLE", "SOLD", "HIDDEN"],
+      enum: ["AVAILABLE", "RESERVED", "SOLD", "HIDDEN"],
       default: "AVAILABLE",
+    },
+    reservedUntil: {
+      type: Date,
+      default: null,
     },
     featured: {
       type: Boolean,

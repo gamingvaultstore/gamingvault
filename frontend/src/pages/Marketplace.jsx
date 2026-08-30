@@ -1,10 +1,12 @@
 import React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import AccountCard from "../components/AccountCard";
 import EmptyState from "../components/EmptyState";
 import FormMessage from "../components/FormMessage";
-import api, { errorMessage } from "../services/api";
+import SkeletonCard from "../components/SkeletonCard";
+import { useToast } from "../context/ToastContext";
+import api, { errorMessage, isCanceledRequest } from "../services/api";
 
 const routeGame = (value) => {
   if (value === "bgmi") return "BGMI";
@@ -15,13 +17,17 @@ const routeGame = (value) => {
 const Marketplace = () => {
   const { game } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const selectedGame = routeGame(game);
   const [accounts, setAccounts] = useState([]);
   const [sort, setSort] = useState("newest");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [requestState, setRequestState] = useState("loading");
   const [error, setError] = useState("");
+  const [loadedQueryKey, setLoadedQueryKey] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const accountsRef = useRef([]);
 
   const pageTitle = useMemo(() => {
     if (selectedGame === "BGMI") return "BGMI Accounts";
@@ -29,27 +35,62 @@ const Marketplace = () => {
     return "Gaming Marketplace";
   }, [selectedGame]);
 
+  const accountQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedGame) params.set("game", selectedGame);
+    if (sort !== "newest") params.set("sort", sort);
+    if (minPrice) params.set("minPrice", minPrice);
+    if (maxPrice) params.set("maxPrice", maxPrice);
+    return params.toString();
+  }, [selectedGame, sort, minPrice, maxPrice]);
+
+  const queryKey = accountQuery || "all";
+  const hasAccounts = accounts.length > 0;
+  const isInitialLoading = requestState === "loading" && !hasAccounts;
+  const isRefreshing = requestState === "refreshing";
+  const isError = requestState === "error";
+  const isShowingStaleResults =
+    hasAccounts && loadedQueryKey !== queryKey && (isRefreshing || isError);
+
   useEffect(() => {
+    accountsRef.current = accounts;
+  }, [accounts]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const hasVisibleAccounts = accountsRef.current.length > 0;
+
+    setRequestState(hasVisibleAccounts ? "refreshing" : "loading");
+    setError("");
+
     const loadAccounts = async () => {
-      setLoading(true);
-      setError("");
       try {
-        const params = new URLSearchParams();
-        if (selectedGame) params.set("game", selectedGame);
-        if (sort !== "newest") params.set("sort", sort);
-        if (minPrice) params.set("minPrice", minPrice);
-        if (maxPrice) params.set("maxPrice", maxPrice);
-        const { data } = await api.get(`/accounts?${params.toString()}`);
+        const endpoint = accountQuery ? `/accounts?${accountQuery}` : "/accounts";
+        const { data } = await api.get(endpoint, {
+          signal: controller.signal,
+        });
+
+        if (!Array.isArray(data)) {
+          throw new Error("Marketplace response was not a list");
+        }
+
         setAccounts(data);
+        setLoadedQueryKey(queryKey);
+        setRequestState("success");
       } catch (err) {
-        setError(errorMessage(err, "Could not load marketplace"));
-      } finally {
-        setLoading(false);
+        if (isCanceledRequest(err)) return;
+
+        const msg = errorMessage(err, "Could not load marketplace");
+        setError(msg);
+        setRequestState("error");
+        addToast(msg, "error");
       }
     };
 
     loadAccounts();
-  }, [selectedGame, sort, minPrice, maxPrice]);
+
+    return () => controller.abort();
+  }, [accountQuery, queryKey, retryCount, addToast]);
 
   const onGameFilter = (value) => {
     if (!value) navigate("/marketplace");
@@ -117,16 +158,57 @@ const Marketplace = () => {
         </label>
       </div>
 
-      <FormMessage>{error}</FormMessage>
+      {error && (
+        <div className="marketplace-status error">
+          <FormMessage>{error}</FormMessage>
+          <button
+            className="button small ghost"
+            type="button"
+            onClick={() => setRetryCount((count) => count + 1)}
+            disabled={isRefreshing || isInitialLoading}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-      {loading ? (
-        <div className="loading-line">Loading accounts...</div>
+      {isRefreshing && (
+        <div className="marketplace-status">
+          Updating marketplace results...
+        </div>
+      )}
+
+      {isShowingStaleResults && (
+        <div className="marketplace-status warning">
+          Showing last loaded accounts until this filter loads.
+        </div>
+      )}
+
+      {isInitialLoading ? (
+        <div className="account-grid">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       ) : accounts.length ? (
         <div className="account-grid">
           {accounts.map((account) => (
             <AccountCard key={account._id} account={account} />
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          title="Could not load marketplace"
+          text="Please retry. Existing accounts are not treated as empty when the API fails."
+        >
+          <button
+            className="button small"
+            type="button"
+            onClick={() => setRetryCount((count) => count + 1)}
+          >
+            Retry
+          </button>
+        </EmptyState>
       ) : (
         <EmptyState
           title={

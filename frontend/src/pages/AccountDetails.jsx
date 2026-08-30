@@ -1,42 +1,73 @@
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import FormMessage from "../components/FormMessage";
+import LoadingButton from "../components/LoadingButton";
+import { SkeletonAccountDetail } from "../components/SkeletonCard";
 import { useAuth } from "../hooks/useAuth";
-import api, { errorMessage } from "../services/api";
-import { formatCurrency, gameLabel, imageUrl } from "../utils/format";
+import { useToast } from "../context/ToastContext";
+import api, { errorMessage, isCanceledRequest } from "../services/api";
+import { formatCurrency, formatSpecValue, gameLabel, imageUrl } from "../utils/format";
+
+const statusText = {
+  AVAILABLE: "Available",
+  RESERVED: "Reserved",
+  SOLD: "Sold",
+};
 
 const AccountDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+  const { addToast } = useToast();
   const [account, setAccount] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+
   const videoType = account?.videoUrl?.toLowerCase().includes(".webm")
     ? "video/webm"
     : "video/mp4";
-  const [error, setError] = useState("");
+
+  const specs = useMemo(
+    () => Object.entries(account?.specifications || {}),
+    [account],
+  );
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadAccount = async () => {
       setLoading(true);
       setError("");
+      setVideoError(false);
       try {
-        const { data } = await api.get(`/accounts/${id}`);
+        const { data } = await api.get(`/accounts/${id}`, {
+          signal: controller.signal,
+        });
         setAccount(data);
         setSelectedImage(data.images?.[0] || "");
       } catch (err) {
-        setError(errorMessage(err, "Account not found"));
+        if (isCanceledRequest(err)) return;
+
+        const msg = errorMessage(err, "Account not found");
+        setAccount(null);
+        setError(msg);
+        addToast(msg, "error");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     loadAccount();
-  }, [id]);
+
+    return () => controller.abort();
+  }, [id, retryCount, addToast]);
 
   const buyNow = async () => {
     if (!isLoggedIn) {
@@ -48,25 +79,44 @@ const AccountDetails = () => {
     setError("");
     try {
       const { data } = await api.post("/orders", { accountId: id });
+      addToast("Order created. Complete payment to reserve delivery.", "success");
       navigate(`/payment/${data._id}`);
     } catch (err) {
-      setError(errorMessage(err, "Could not start this purchase"));
+      const msg = errorMessage(err, "Could not start this purchase");
+      setError(msg);
+      addToast(msg, "error");
     } finally {
       setBuying(false);
     }
   };
 
   if (loading) {
-    return <div className="section page-section">Loading account...</div>;
+    return (
+      <section className="section page-section">
+        <SkeletonAccountDetail />
+      </section>
+    );
   }
 
   if (!account) {
     return (
       <section className="section page-section">
-        <FormMessage>{error || "Account not found"}</FormMessage>
-        <Link className="button" to="/marketplace">
-          Back to Marketplace
-        </Link>
+        <div className="empty-state">
+          <h3>{error || "Account not found"}</h3>
+          <p>The account may have been removed or hidden by the admin.</p>
+          <div className="button-row">
+            <button
+              className="button small"
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+            >
+              Retry
+            </button>
+            <Link className="button small ghost" to="/marketplace">
+              Back to Marketplace
+            </Link>
+          </div>
+        </div>
       </section>
     );
   }
@@ -81,7 +131,12 @@ const AccountDetails = () => {
         {account.images?.length > 1 && (
           <div className="thumb-row">
             {account.images.map((img) => (
-              <button key={img} onClick={() => setSelectedImage(img)}>
+              <button
+                className={selectedImage === img ? "active" : ""}
+                key={img}
+                type="button"
+                onClick={() => setSelectedImage(img)}
+              >
                 <img src={imageUrl(img)} alt="" />
               </button>
             ))}
@@ -99,48 +154,73 @@ const AccountDetails = () => {
                 controls
                 playsInline
                 preload="metadata"
+                poster={imageUrl(account.images?.[0])}
                 onError={() => setVideoError(true)}
               >
                 <source src={account.videoUrl} type={videoType} />
                 Your browser does not support video playback.
               </video>
             )}
-            {!videoError && (
-              <p>
-                A short video showing the account's inventory and important
-                items.
-              </p>
-            )}
           </section>
         )}
       </div>
       <div className="details-panel">
-        <span className={`pill ${account.game === "BGMI" ? "teal" : "gold"}`}>
-          {gameLabel(account.game)}
-        </span>
+        <div className="details-meta">
+          <span className={`pill ${account.game === "BGMI" ? "teal" : "gold"}`}>
+            {gameLabel(account.game)}
+          </span>
+          <span className={`status-badge status-${account.status?.toLowerCase()}`}>
+            {statusText[account.status] || "Unavailable"}
+          </span>
+        </div>
         <h1>{account.title}</h1>
-        <p className="price-line">{formatCurrency(account.price)}</p>
-        <p className="muted">Level {account.level}</p>
+        <div className="purchase-box">
+          <div>
+            <span>Price</span>
+            <strong>{formatCurrency(account.price)}</strong>
+          </div>
+          <div>
+            <span>Level</span>
+            <strong>{formatSpecValue(account.level)}</strong>
+          </div>
+        </div>
         <p>{account.description}</p>
 
-        <div className="spec-table">
-          {Object.entries(account.specifications || {}).map(([key, value]) => (
-            <div key={key}>
-              <span>{key.replace(/([A-Z])/g, " $1")}</span>
-              <strong>{value}</strong>
+        {specs.length > 0 && (
+          <>
+            <h2 className="panel-heading">Account Highlights</h2>
+            <div className="spec-table">
+              {specs.map(([key, value]) => (
+                <div key={key}>
+                  <span>{key.replace(/([A-Z])/g, " $1")}</span>
+                  <strong>{formatSpecValue(value)}</strong>
+                </div>
+              ))}
             </div>
-          ))}
+          </>
+        )}
+
+        <div className="payment-flow">
+          <span>Buy</span>
+          <span>Pay UPI</span>
+          <span>Submit proof</span>
+          <span>Admin verifies</span>
         </div>
 
         <FormMessage>{error}</FormMessage>
 
         {account.status === "AVAILABLE" ? (
-          <button className="button wide" onClick={buyNow} disabled={buying}>
-            {buying ? "Checking Availability..." : "Buy Now"}
-          </button>
+          <LoadingButton
+            className="button wide"
+            loading={buying}
+            loadingLabel="PROCESSING..."
+            onClick={buyNow}
+          >
+            BUY NOW
+          </LoadingButton>
         ) : (
           <button className="button wide disabled" disabled>
-            SOLD OUT
+            {account.status === "RESERVED" ? "RESERVED" : "SOLD OUT"}
           </button>
         )}
       </div>

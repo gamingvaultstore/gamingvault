@@ -7,6 +7,14 @@ const { gameFromParam, sortFromQuery } = require("./accountController");
 const toBoolean = (value) =>
   value === true || value === "true" || value === "on";
 
+const validStatuses = ["AVAILABLE", "RESERVED", "SOLD", "HIDDEN"];
+
+const badRequest = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  throw error;
+};
+
 const accountPayloadFromBody = (body) => ({
   game: gameFromParam(body.game),
   title: body.title,
@@ -31,7 +39,7 @@ const validateAccountPayload = (payload) => {
   if (!payload.description) return "Description is required";
   if (!Number.isFinite(payload.price)) return "Valid price is required";
   if (!payload.level) return "Level is required";
-  if (!["AVAILABLE", "SOLD", "HIDDEN"].includes(payload.status)) {
+  if (!validStatuses.includes(payload.status)) {
     return "Valid status is required";
   }
   return null;
@@ -47,8 +55,16 @@ const uploadedImageUrls = async (files = []) => {
 const getAdminAccounts = asyncHandler(async (req, res) => {
   const filter = {};
 
-  if (req.query.game) filter.game = gameFromParam(req.query.game);
-  if (req.query.status) filter.status = req.query.status;
+  if (req.query.game) {
+    const game = gameFromParam(req.query.game);
+    if (!game) badRequest("Game filter must be BGMI or Free Fire");
+    filter.game = game;
+  }
+  if (req.query.status && validStatuses.includes(req.query.status)) {
+    filter.status = req.query.status;
+  } else if (req.query.status) {
+    badRequest("Invalid account status filter");
+  }
 
   const accounts = await Account.find(filter).sort(
     sortFromQuery(req.query.sort),
@@ -111,6 +127,10 @@ const updateAccount = asyncHandler(async (req, res) => {
     images: [...existingImages, ...newImages],
     videoUrl,
   });
+
+  if (payload.status !== "RESERVED") {
+    account.reservedUntil = null;
+  }
 
   await account.save();
   res.json(account);

@@ -7,6 +7,7 @@ import api, { errorMessage } from "../services/api";
 const FAQ = () => {
   const [faqs, setFaqs] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadFaqs = async () => {
@@ -15,6 +16,8 @@ const FAQ = () => {
         setFaqs(data);
       } catch (err) {
         setError(errorMessage(err, "Could not load FAQs"));
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -28,7 +31,9 @@ const FAQ = () => {
         <h1>FAQ</h1>
       </div>
       <FormMessage>{error}</FormMessage>
-      {faqs.length ? (
+      {loading ? (
+        <div className="loading-line">Loading FAQs...</div>
+      ) : faqs.length ? (
         <div className="faq-list wide">
           {faqs.map((faq) => (
             <details key={faq._id}>
@@ -37,7 +42,7 @@ const FAQ = () => {
             </details>
           ))}
         </div>
-      ) : (
+      ) : error ? null : (
         <EmptyState
           title="No FAQs yet"
           text="Questions will appear here soon."

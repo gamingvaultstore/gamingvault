@@ -21,4 +21,7 @@ api.interceptors.request.use((config) => {
 export const errorMessage = (error, fallback = "Something went wrong") =>
   error?.response?.data?.message || fallback;
 
+export const isCanceledRequest = (error) =>
+  error?.code === "ERR_CANCELED" || error?.name === "CanceledError";
+
 export default api;

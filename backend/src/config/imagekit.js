@@ -9,7 +9,11 @@ const hasImageKitConfig = () =>
 
 const getImageKit = () => {
   if (!hasImageKitConfig()) {
-    throw new Error("ImageKit is not configured");
+    const error = new Error(
+      "Image uploads are not configured. Please set ImageKit credentials.",
+    );
+    error.statusCode = 503;
+    throw error;
   }
 
   return new ImageKit({

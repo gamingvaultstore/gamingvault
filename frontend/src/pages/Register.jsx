@@ -2,12 +2,15 @@ import React from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormMessage from "../components/FormMessage";
+import LoadingButton from "../components/LoadingButton";
 import { useAuth } from "../hooks/useAuth";
+import { useToast } from "../context/ToastContext";
 import { errorMessage } from "../services/api";
 
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -24,9 +27,12 @@ const Register = () => {
 
     try {
       await register(form);
+      addToast("Account created successfully", "success");
       navigate("/dashboard");
     } catch (err) {
-      setError(errorMessage(err, "Registration failed"));
+      const msg = errorMessage(err, "Registration failed");
+      setError(msg);
+      addToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -45,6 +51,8 @@ const Register = () => {
           <input
             value={form.name}
             onChange={(event) => update("name", event.target.value)}
+            placeholder="Your full name"
+            disabled={loading}
             required
           />
         </label>
@@ -54,6 +62,8 @@ const Register = () => {
             type="email"
             value={form.email}
             onChange={(event) => update("email", event.target.value)}
+            placeholder="your@email.com"
+            disabled={loading}
             required
           />
         </label>
@@ -62,6 +72,8 @@ const Register = () => {
           <input
             value={form.phone}
             onChange={(event) => update("phone", event.target.value)}
+            placeholder="+91 XXXXX XXXXX"
+            disabled={loading}
             required
           />
         </label>
@@ -72,12 +84,19 @@ const Register = () => {
             value={form.password}
             minLength="8"
             onChange={(event) => update("password", event.target.value)}
+            placeholder="Minimum 8 characters"
+            disabled={loading}
             required
           />
         </label>
-        <button className="button wide" disabled={loading}>
-          {loading ? "Creating..." : "Register"}
-        </button>
+        <LoadingButton
+          className="button wide"
+          loading={loading}
+          loadingLabel="CREATING ACCOUNT..."
+          type="submit"
+        >
+          REGISTER
+        </LoadingButton>
         <p>
           Already registered? <Link to="/login">Login</Link>
         </p>

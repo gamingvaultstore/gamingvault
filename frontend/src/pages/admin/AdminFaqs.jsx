@@ -1,6 +1,9 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import FormMessage from "../../components/FormMessage";
+import LoadingButton from "../../components/LoadingButton";
+import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
 import api, { errorMessage } from "../../services/api";
 
 const emptyFaq = {
@@ -16,13 +19,18 @@ const AdminFaqs = () => {
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
   const loadFaqs = async () => {
     try {
       const { data } = await api.get("/admin/faqs");
       setFaqs(data);
     } catch (err) {
-      setError(errorMessage(err, "Could not load FAQs"));
+      const msg = errorMessage(err, "Could not load FAQs");
+      setError(msg);
+      addToast(msg, "error");
     }
   };
 
@@ -33,37 +41,50 @@ const AdminFaqs = () => {
   const reset = () => {
     setForm(emptyFaq);
     setEditingId("");
+    setMessage("");
+    setError("");
   };
 
   const submit = async (event) => {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSaving(true);
 
     try {
       if (editingId) {
         await api.put(`/admin/faqs/${editingId}`, form);
-        setMessage("FAQ updated");
+        addToast("FAQ updated successfully", "success");
       } else {
         await api.post("/admin/faqs", form);
-        setMessage("FAQ added");
+        addToast("FAQ added successfully", "success");
       }
       reset();
       loadFaqs();
     } catch (err) {
-      setError(errorMessage(err, "Could not save FAQ"));
+      const msg = errorMessage(err, "Could not save FAQ");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("Delete this FAQ?")) return;
-    try {
-      await api.delete(`/admin/faqs/${id}`);
-      setMessage("FAQ deleted");
-      loadFaqs();
-    } catch (err) {
-      setError(errorMessage(err, "Could not delete FAQ"));
-    }
+  const remove = async (faq) => {
+    await confirm(
+      "Delete this FAQ?",
+      `Remove: "${faq.question}"? This action cannot be undone.`,
+      async () => {
+        try {
+          await api.delete(`/admin/faqs/${faq._id}`);
+          addToast("FAQ deleted successfully", "success");
+          loadFaqs();
+        } catch (err) {
+          const msg = errorMessage(err, "Could not delete FAQ");
+          addToast(msg, "error");
+        }
+      }
+    );
   };
 
   const update = (field, value) => setForm({ ...form, [field]: value });
@@ -83,6 +104,7 @@ const AdminFaqs = () => {
           <input
             value={form.question}
             onChange={(event) => update("question", event.target.value)}
+            disabled={saving}
             required
           />
         </label>
@@ -92,6 +114,7 @@ const AdminFaqs = () => {
             value={form.answer}
             onChange={(event) => update("answer", event.target.value)}
             rows="4"
+            disabled={saving}
             required
           />
         </label>
@@ -101,6 +124,7 @@ const AdminFaqs = () => {
             type="number"
             value={form.order}
             onChange={(event) => update("order", Number(event.target.value))}
+            disabled={saving}
           />
         </label>
         <label className="checkbox-label">
@@ -108,15 +132,21 @@ const AdminFaqs = () => {
             type="checkbox"
             checked={form.active}
             onChange={(event) => update("active", event.target.checked)}
+            disabled={saving}
           />
           Active
         </label>
         <div className="button-row">
-          <button className="button">
-            {editingId ? "Save FAQ" : "Add FAQ"}
-          </button>
+          <LoadingButton
+            className="button"
+            loading={saving}
+            loadingLabel="SAVING..."
+            type="submit"
+          >
+            {editingId ? "SAVE FAQ" : "ADD FAQ"}
+          </LoadingButton>
           {editingId && (
-            <button className="button ghost" type="button" onClick={reset}>
+            <button className="button ghost" type="button" onClick={reset} disabled={saving}>
               Cancel
             </button>
           )}
@@ -146,12 +176,14 @@ const AdminFaqs = () => {
                   });
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
+                disabled={saving}
               >
                 Edit
               </button>
               <button
                 className="button small danger"
-                onClick={() => remove(faq._id)}
+                onClick={() => remove(faq)}
+                disabled={saving}
               >
                 Delete
               </button>

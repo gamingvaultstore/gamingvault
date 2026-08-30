@@ -39,11 +39,17 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
 
   if (status === "VERIFIED") {
-    await Account.findByIdAndUpdate(order.account, { status: "SOLD" });
+    await Account.findByIdAndUpdate(order.account, {
+      status: "SOLD",
+      reservedUntil: null,
+    });
   }
 
   if (status === "REJECTED") {
-    await Account.findByIdAndUpdate(order.account, { status: "AVAILABLE" });
+    await Account.findOneAndUpdate(
+      { _id: order.account, status: { $in: ["RESERVED", "SOLD"] } },
+      { status: "AVAILABLE", reservedUntil: null },
+    );
   }
 
   const populated = await Order.findById(order._id)

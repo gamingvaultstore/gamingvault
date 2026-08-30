@@ -3,35 +3,58 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AccountCard from "../components/AccountCard";
 import EmptyState from "../components/EmptyState";
-import api from "../services/api";
+import FormMessage from "../components/FormMessage";
+import SkeletonCard from "../components/SkeletonCard";
+import api, { errorMessage, isCanceledRequest } from "../services/api";
 
 const Home = () => {
   const [featured, setFeatured] = useState([]);
   const [proofs, setProofs] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadHome = async () => {
       try {
-        const [accountsRes, proofsRes, faqsRes] = await Promise.all([
-          api.get("/accounts?featured=true"),
-          api.get("/customer-proofs"),
-          api.get("/faqs"),
+        const [accountsRes, proofsRes, faqsRes] = await Promise.allSettled([
+          api.get("/accounts?featured=true", { signal: controller.signal }),
+          api.get("/customer-proofs", { signal: controller.signal }),
+          api.get("/faqs", { signal: controller.signal }),
         ]);
-        setFeatured(accountsRes.data.slice(0, 4));
-        setProofs(proofsRes.data.slice(0, 3));
-        setFaqs(faqsRes.data.slice(0, 3));
+
+        if (accountsRes.status === "fulfilled") {
+          setFeatured(accountsRes.value.data.slice(0, 4));
+          setFeaturedError("");
+        } else if (!isCanceledRequest(accountsRes.reason)) {
+          setFeaturedError(
+            errorMessage(accountsRes.reason, "Could not load featured accounts"),
+          );
+        }
+
+        if (proofsRes.status === "fulfilled") {
+          setProofs(proofsRes.value.data.slice(0, 3));
+        }
+
+        if (faqsRes.status === "fulfilled") {
+          setFaqs(faqsRes.value.data.slice(0, 3));
+        }
       } catch (error) {
-        setFeatured([]);
-        setProofs([]);
-        setFaqs([]);
+        if (!isCanceledRequest(error)) {
+          setFeaturedError(errorMessage(error, "Could not load featured accounts"));
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     loadHome();
+
+    return () => controller.abort();
   }, []);
 
   return (
@@ -83,14 +106,24 @@ const Home = () => {
             View All
           </Link>
         </div>
+        <FormMessage>{featuredError}</FormMessage>
         {loading ? (
-          <div className="loading-line">Loading accounts...</div>
+          <div className="account-grid">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
         ) : featured.length ? (
           <div className="account-grid">
             {featured.map((account) => (
               <AccountCard key={account._id} account={account} />
             ))}
           </div>
+        ) : featuredError ? (
+          <EmptyState
+            title="Could not load featured accounts"
+            text="The marketplace may still have accounts. Please browse all accounts."
+          />
         ) : (
           <EmptyState
             title="No featured accounts"

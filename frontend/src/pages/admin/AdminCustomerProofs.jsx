@@ -1,6 +1,10 @@
 import React from "react";
 import { useEffect, useState } from "react";
+import EmptyState from "../../components/EmptyState";
 import FormMessage from "../../components/FormMessage";
+import LoadingButton from "../../components/LoadingButton";
+import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
 import api, { errorMessage } from "../../services/api";
 
 const AdminCustomerProofs = () => {
@@ -8,15 +12,26 @@ const AdminCustomerProofs = () => {
   const [title, setTitle] = useState("");
   const [order, setOrder] = useState("0");
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+  const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
   const loadProofs = async () => {
+    setLoading(proofs.length === 0);
     try {
       const { data } = await api.get("/admin/customer-proofs");
       setProofs(data);
     } catch (err) {
-      setError(errorMessage(err, "Could not load customer proofs"));
+      const msg = errorMessage(err, "Could not load customer proofs");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -29,6 +44,15 @@ const AdminCustomerProofs = () => {
     setMessage("");
     setError("");
 
+    if (!file) {
+      const msg = "Customer proof screenshot is required.";
+      setError(msg);
+      addToast(msg, "warning");
+      return;
+    }
+
+    setUploading(true);
+
     try {
       const formData = new FormData();
       formData.append("title", title || "Customer proof");
@@ -38,22 +62,45 @@ const AdminCustomerProofs = () => {
       setTitle("");
       setOrder("0");
       setFile(null);
-      setMessage("Customer proof added");
-      loadProofs();
+      setFileName("");
+      setMessage("Customer proof uploaded successfully");
+      addToast("Customer proof uploaded successfully", "success");
+      await loadProofs();
     } catch (err) {
-      setError(errorMessage(err, "Could not add proof"));
+      const msg = errorMessage(err, "Could not upload proof");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setUploading(false);
     }
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("Delete this proof?")) return;
-    try {
-      await api.delete(`/admin/customer-proofs/${id}`);
-      setMessage("Customer proof deleted");
-      loadProofs();
-    } catch (err) {
-      setError(errorMessage(err, "Could not delete proof"));
-    }
+  const remove = async (proof) => {
+    await confirm(
+      "Delete this proof?",
+      `Remove: "${proof.title}"? This action cannot be undone.`,
+      async () => {
+        setDeletingId(proof._id);
+        try {
+          await api.delete(`/admin/customer-proofs/${proof._id}`);
+          addToast("Customer proof deleted successfully", "success");
+          await loadProofs();
+        } catch (err) {
+          const msg = errorMessage(err, "Could not delete proof");
+          setError(msg);
+          addToast(msg, "error");
+        } finally {
+          setDeletingId("");
+        }
+      },
+    );
+  };
+
+  const onFileChange = (event) => {
+    const nextFile = event.target.files?.[0] || null;
+    setFile(nextFile);
+    setFileName(nextFile?.name || "");
+    setMessage("");
   };
 
   return (
@@ -70,6 +117,8 @@ const AdminCustomerProofs = () => {
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
+            placeholder="e.g., Account Purchase Verification"
+            disabled={uploading}
           />
         </label>
         <label>
@@ -78,33 +127,53 @@ const AdminCustomerProofs = () => {
             type="number"
             value={order}
             onChange={(event) => setOrder(event.target.value)}
+            disabled={uploading}
           />
         </label>
         <label>
-          Screenshot
+          Screenshot <span className="required-mark">*</span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => setFile(event.target.files?.[0])}
+            onChange={onFileChange}
+            disabled={uploading}
             required
           />
+          {fileName && <span className="file-selected">{fileName}</span>}
         </label>
-        <button className="button">Upload Proof</button>
+        <LoadingButton
+          className="button"
+          loading={uploading}
+          loadingLabel="UPLOADING..."
+          type="submit"
+        >
+          UPLOAD PROOF
+        </LoadingButton>
       </form>
 
-      <div className="proof-grid full">
-        {proofs.map((proof) => (
-          <div className="proof-item" key={proof._id}>
-            <img src={proof.imageUrl} alt={proof.title} />
-            <button
-              className="button small danger"
-              onClick={() => remove(proof._id)}
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="loading-line">Loading customer proofs...</div>
+      ) : proofs.length ? (
+        <div className="proof-grid full">
+          {proofs.map((proof) => (
+            <div className="proof-item" key={proof._id}>
+              <img src={proof.imageUrl} alt={proof.title} />
+              <button
+                className="button small danger"
+                onClick={() => remove(proof)}
+                disabled={deletingId === proof._id}
+              >
+                {deletingId === proof._id ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : error ? null : (
+        <EmptyState
+          title="No customer proofs yet"
+          text="Upload screenshots to show customer payment or delivery proof."
+        />
+      )}
     </div>
   );
 };

@@ -1,10 +1,14 @@
 import React from "react";
 import { useEffect, useState } from "react";
+import EmptyState from "../../components/EmptyState";
 import FormMessage from "../../components/FormMessage";
-import api, { errorMessage } from "../../services/api";
+import LoadingButton from "../../components/LoadingButton";
+import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
+import api, { errorMessage, isCanceledRequest } from "../../services/api";
 import { formatCurrency, gameLabel, imageUrl } from "../../utils/format";
 
-const emptyForm = {
+const freshForm = () => ({
   game: "BGMI",
   title: "",
   price: "",
@@ -16,15 +20,15 @@ const emptyForm = {
   existingImages: [],
   videoUrl: "",
   removeVideo: false,
-};
+});
 
 const formDataFromAccount = (form, files, videoFile) => {
   const data = new FormData();
   data.append("game", form.game);
-  data.append("title", form.title);
+  data.append("title", form.title.trim());
   data.append("price", form.price);
-  data.append("level", form.level);
-  data.append("description", form.description);
+  data.append("level", String(form.level).trim());
+  data.append("description", form.description.trim());
   data.append("specifications", form.specifications);
   data.append("status", form.status);
   data.append("featured", String(form.featured));
@@ -36,33 +40,56 @@ const formDataFromAccount = (form, files, videoFile) => {
   return data;
 };
 
+const rowActionLabel = (updating, action, label) =>
+  updating === action ? "Updating..." : label;
+
 const AdminAccounts = () => {
   const [accounts, setAccounts] = useState([]);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(freshForm);
   const [files, setFiles] = useState(null);
+  const [fileNames, setFileNames] = useState([]);
   const [videoFile, setVideoFile] = useState(null);
+  const [videoFileName, setVideoFileName] = useState("");
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [listLoading, setListLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState({});
+  const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
-  const loadAccounts = async () => {
+  const loadAccounts = async (signal) => {
+    setListLoading(accounts.length === 0);
     try {
-      const { data } = await api.get("/admin/accounts");
+      const { data } = await api.get("/admin/accounts", { signal });
       setAccounts(data);
     } catch (err) {
-      setError(errorMessage(err, "Could not load accounts"));
+      if (isCanceledRequest(err)) return;
+
+      const msg = errorMessage(err, "Could not load accounts");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setListLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAccounts();
+    const controller = new AbortController();
+    loadAccounts(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm(freshForm());
     setFiles(null);
+    setFileNames([]);
     setVideoFile(null);
+    setVideoFileName("");
     setEditingId("");
+    setMessage("");
+    setError("");
   };
 
   const submit = async (event) => {
@@ -71,18 +98,35 @@ const AdminAccounts = () => {
     setError("");
 
     try {
+      JSON.parse(form.specifications || "{}");
+    } catch {
+      const msg = "Specifications must be valid JSON.";
+      setError(msg);
+      addToast(msg, "error");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
       const payload = formDataFromAccount(form, files, videoFile);
       if (editingId) {
         await api.put(`/admin/accounts/${editingId}`, payload);
-        setMessage("Account updated");
+        setMessage("Account updated successfully");
+        addToast("Account updated successfully", "success");
       } else {
         await api.post("/admin/accounts", payload);
-        setMessage("Account added");
+        setMessage("Account added successfully");
+        addToast("Account added successfully", "success");
       }
       resetForm();
-      loadAccounts();
+      await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Could not save account"));
+      const msg = errorMessage(err, "Could not save account");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -101,10 +145,17 @@ const AdminAccounts = () => {
       videoUrl: account.videoUrl || "",
       removeVideo: false,
     });
+    setFiles(null);
+    setFileNames([]);
+    setVideoFile(null);
+    setVideoFileName("");
+    setMessage("");
+    setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const quickUpdate = async (account, updates) => {
+  const quickUpdate = async (account, updates, action) => {
+    setUpdating((prev) => ({ ...prev, [account._id]: action }));
     setError("");
     setMessage("");
     try {
@@ -127,25 +178,51 @@ const AdminAccounts = () => {
         [],
       );
       await api.put(`/admin/accounts/${account._id}`, payload);
-      setMessage("Account updated");
-      loadAccounts();
+      addToast("Account updated", "success");
+      await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Could not update account"));
+      const msg = errorMessage(err, "Could not update account");
+      setError(msg);
+      addToast(msg, "error");
+    } finally {
+      setUpdating((prev) => ({ ...prev, [account._id]: "" }));
     }
   };
 
-  const deleteAccount = async (accountId) => {
-    if (!window.confirm("Delete this account?")) return;
-    try {
-      await api.delete(`/admin/accounts/${accountId}`);
-      setMessage("Account deleted");
-      loadAccounts();
-    } catch (err) {
-      setError(errorMessage(err, "Could not delete account"));
-    }
+  const deleteAccount = async (account) => {
+    await confirm(
+      "Delete this account?",
+      `This will remove "${account.title}" from the marketplace. This action cannot be undone.`,
+      async () => {
+        setUpdating((prev) => ({ ...prev, [account._id]: "delete" }));
+        try {
+          await api.delete(`/admin/accounts/${account._id}`);
+          addToast("Account deleted successfully", "success");
+          await loadAccounts();
+        } catch (err) {
+          const msg = errorMessage(err, "Could not delete account");
+          setError(msg);
+          addToast(msg, "error");
+        } finally {
+          setUpdating((prev) => ({ ...prev, [account._id]: "" }));
+        }
+      },
+    );
   };
 
   const update = (field, value) => setForm({ ...form, [field]: value });
+
+  const updateImageFiles = (event) => {
+    const nextFiles = event.target.files;
+    setFiles(nextFiles);
+    setFileNames(Array.from(nextFiles || []).map((file) => file.name));
+  };
+
+  const updateVideoFile = (event) => {
+    const nextFiles = event.target.files;
+    setVideoFile(nextFiles);
+    setVideoFileName(nextFiles?.[0]?.name || "");
+  };
 
   return (
     <div>
@@ -164,6 +241,7 @@ const AdminAccounts = () => {
             <select
               value={form.game}
               onChange={(event) => update("game", event.target.value)}
+              disabled={saving}
             >
               <option value="BGMI">BGMI</option>
               <option value="FREE_FIRE">Free Fire</option>
@@ -174,8 +252,10 @@ const AdminAccounts = () => {
             <select
               value={form.status}
               onChange={(event) => update("status", event.target.value)}
+              disabled={saving}
             >
               <option value="AVAILABLE">Available</option>
+              <option value="RESERVED">Reserved</option>
               <option value="SOLD">Sold</option>
               <option value="HIDDEN">Hidden</option>
             </select>
@@ -185,6 +265,7 @@ const AdminAccounts = () => {
             <input
               value={form.title}
               onChange={(event) => update("title", event.target.value)}
+              disabled={saving}
               required
             />
           </label>
@@ -195,6 +276,7 @@ const AdminAccounts = () => {
               min="0"
               value={form.price}
               onChange={(event) => update("price", event.target.value)}
+              disabled={saving}
               required
             />
           </label>
@@ -203,6 +285,7 @@ const AdminAccounts = () => {
             <input
               value={form.level}
               onChange={(event) => update("level", event.target.value)}
+              disabled={saving}
               required
             />
           </label>
@@ -211,6 +294,7 @@ const AdminAccounts = () => {
               type="checkbox"
               checked={form.featured}
               onChange={(event) => update("featured", event.target.checked)}
+              disabled={saving}
             />
             Featured
           </label>
@@ -221,6 +305,7 @@ const AdminAccounts = () => {
             value={form.description}
             onChange={(event) => update("description", event.target.value)}
             rows="3"
+            disabled={saving}
             required
           />
         </label>
@@ -230,6 +315,7 @@ const AdminAccounts = () => {
             value={form.specifications}
             onChange={(event) => update("specifications", event.target.value)}
             rows="6"
+            disabled={saving}
           />
         </label>
         <label>
@@ -238,16 +324,24 @@ const AdminAccounts = () => {
             type="file"
             accept="image/png,image/jpeg,image/webp"
             multiple
-            onChange={(event) => setFiles(event.target.files)}
+            onChange={updateImageFiles}
+            disabled={saving}
           />
+          {fileNames.length > 0 && (
+            <span className="file-selected">{fileNames.join(", ")}</span>
+          )}
         </label>
         <label>
           Account Video
           <input
             type="file"
             accept="video/mp4,video/webm"
-            onChange={(event) => setVideoFile(event.target.files)}
+            onChange={updateVideoFile}
+            disabled={saving}
           />
+          {videoFileName && (
+            <span className="file-selected">{videoFileName}</span>
+          )}
         </label>
         {form.videoUrl && (
           <div className="video-admin-options">
@@ -259,6 +353,7 @@ const AdminAccounts = () => {
                 onChange={(event) =>
                   update("removeVideo", event.target.checked)
                 }
+                disabled={saving}
               />
               Remove existing video
             </label>
@@ -272,75 +367,120 @@ const AdminAccounts = () => {
           </div>
         )}
         <div className="button-row">
-          <button className="button">
-            {editingId ? "Save Account" : "Add Account"}
-          </button>
+          <LoadingButton
+            className="button"
+            loading={saving}
+            loadingLabel={
+              files || videoFile ? "UPLOADING MEDIA..." : "SAVING..."
+            }
+            type="submit"
+          >
+            {editingId ? "SAVE ACCOUNT" : "ADD ACCOUNT"}
+          </LoadingButton>
           {editingId && (
-            <button type="button" className="button ghost" onClick={resetForm}>
+            <button
+              type="button"
+              className="button ghost"
+              onClick={resetForm}
+              disabled={saving}
+            >
               Cancel
             </button>
           )}
         </div>
       </form>
 
-      <div className="admin-list">
-        {accounts.map((account) => (
-          <article className="admin-row" key={account._id}>
-            <img src={imageUrl(account.images?.[0])} alt={account.title} />
-            <div>
-              <h3>{account.title}</h3>
-              <p>
-                {gameLabel(account.game)} | Level {account.level} |{" "}
-                {formatCurrency(account.price)}
-              </p>
-              <p>
-                Status: {account.status} | Featured:{" "}
-                {account.featured ? "Yes" : "No"}
-              </p>
-            </div>
-            <div className="row-actions">
-              <button
-                className="button small ghost"
-                onClick={() => editAccount(account)}
-              >
-                Edit
-              </button>
-              <button
-                className="button small ghost"
-                onClick={() => quickUpdate(account, { status: "AVAILABLE" })}
-              >
-                Available
-              </button>
-              <button
-                className="button small ghost"
-                onClick={() => quickUpdate(account, { status: "SOLD" })}
-              >
-                Sold
-              </button>
-              <button
-                className="button small ghost"
-                onClick={() => quickUpdate(account, { status: "HIDDEN" })}
-              >
-                Hide
-              </button>
-              <button
-                className="button small ghost"
-                onClick={() =>
-                  quickUpdate(account, { featured: !account.featured })
-                }
-              >
-                {account.featured ? "Unfeature" : "Feature"}
-              </button>
-              <button
-                className="button small danger"
-                onClick={() => deleteAccount(account._id)}
-              >
-                Delete
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
+      {listLoading ? (
+        <div className="loading-line">Loading accounts...</div>
+      ) : accounts.length ? (
+        <div className="admin-list">
+          {accounts.map((account) => {
+            const action = updating[account._id];
+            return (
+              <article className="admin-row" key={account._id}>
+                <img src={imageUrl(account.images?.[0])} alt={account.title} />
+                <div>
+                  <h3>{account.title}</h3>
+                  <p>
+                    {gameLabel(account.game)} | Level {account.level} |{" "}
+                    {formatCurrency(account.price)}
+                  </p>
+                  <p>
+                    Status: <strong>{account.status}</strong> | Featured:{" "}
+                    {account.featured ? "Yes" : "No"}
+                  </p>
+                  {account.videoUrl && <p>Video: uploaded</p>}
+                </div>
+                <div className="row-actions">
+                  <button
+                    className="button small ghost"
+                    onClick={() => editAccount(account)}
+                    disabled={Boolean(action)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="button small ghost"
+                    onClick={() =>
+                      quickUpdate(account, { status: "AVAILABLE" }, "available")
+                    }
+                    disabled={Boolean(action)}
+                  >
+                    {rowActionLabel(action, "available", "Available")}
+                  </button>
+                  <button
+                    className="button small ghost"
+                    onClick={() =>
+                      quickUpdate(account, { status: "SOLD" }, "sold")
+                    }
+                    disabled={Boolean(action)}
+                  >
+                    {rowActionLabel(action, "sold", "Sold")}
+                  </button>
+                  <button
+                    className="button small ghost"
+                    onClick={() =>
+                      quickUpdate(account, { status: "HIDDEN" }, "hidden")
+                    }
+                    disabled={Boolean(action)}
+                  >
+                    {rowActionLabel(action, "hidden", "Hide")}
+                  </button>
+                  <button
+                    className="button small ghost"
+                    onClick={() =>
+                      quickUpdate(
+                        account,
+                        { featured: !account.featured },
+                        "featured",
+                      )
+                    }
+                    disabled={Boolean(action)}
+                  >
+                    {rowActionLabel(
+                      action,
+                      "featured",
+                      account.featured ? "Unfeature" : "Feature",
+                    )}
+                  </button>
+                  <button
+                    className="button small danger"
+                    onClick={() => deleteAccount(account)}
+                    disabled={Boolean(action)}
+                  >
+                    {rowActionLabel(action, "delete", "Delete")}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title="No accounts yet"
+          text="Add the first gaming account from the form above."
+        />
+      )}
     </div>
   );
 };

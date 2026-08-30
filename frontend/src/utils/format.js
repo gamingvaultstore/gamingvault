@@ -5,6 +5,20 @@ export const formatCurrency = (amount) =>
     maximumFractionDigits: 0
   }).format(amount || 0);
 
+export const formatSpecValue = (value) => {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => formatSpecValue(item)).filter(Boolean).join(", ");
+  }
+  return Object.values(value)
+    .map((item) => formatSpecValue(item))
+    .filter(Boolean)
+    .join(", ");
+};
+
 export const gameLabel = (game) => {
   if (game === "FREE_FIRE") return "Free Fire";
   return game || "Game";
