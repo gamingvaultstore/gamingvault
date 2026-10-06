@@ -49,6 +49,16 @@ const PublicLayout = () => {
             </NavLink>
           </div>
           <div className="nav-actions">
+            <a
+              className="subtle-link"
+              href="https://wa.me/918302286592"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Contact customer care on WhatsApp"
+              title="WhatsApp customer care"
+            >
+              WhatsApp: +91 8302286592
+            </a>
             {isLoggedIn ? (
               <>
                 <Link className="button ghost small" to="/dashboard">
